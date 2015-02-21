@@ -55,7 +55,22 @@ module.exports = function(dox, readme, pkg, travis) {
         log(pkg.description + '\n');
     }
 
-    dox.forEach(function(d) {
+    dox.filter(not(isPrivate)).forEach(print);
+
+    log('## Private members \n');
+    dox.filter(isPrivate).forEach(print);
+
+    function isPrivate (d) {
+        return getTags(d.tags, 'api')[0].visibility === 'private';
+    }
+
+    function not (fn) {
+        return function () {
+            return !fn.apply(fn, arguments);
+        };
+    }
+
+    function print (d) {
         var alias, returns;
         var name = '', mod;
         if (alias = getTag(d.tags, 'alias')) {
@@ -78,23 +93,8 @@ module.exports = function(dox, readme, pkg, travis) {
                 log('%s\n', reformat(d.description.full));
             }
 
-            var params = getTags(d.tags, 'param');
-
-            if (params.length) {
-                log('### Parameters\n');
-                log(table(
-                    [['parameter', 'type', 'description']]
-                        .concat(params.map(function(p) {
-                            var type = p.typesDescription.match(/^{/) ?
-                                p.typesDescription.replace(/\|/g, '/') :
-                                p.types.join(',');
-                            return ['`' + p.name + '`', type,
-                                (p.optional ? '_optional:_ ' : '') +
-                                reformat(p.description)];
-                        }))
-                ));
-                log('\n');
-            }
+            printTable(d, 'param', 'Parameters')
+            printTable(d, 'property', 'Properties')
 
             var examples = getTags(d.tags, 'example');
             if (examples.length) {
@@ -108,7 +108,7 @@ module.exports = function(dox, readme, pkg, travis) {
                 log('\n**Returns** `%s`, %s\n', returns.types.join(','), reformat(returns.description));
             }
         }
-    });
+    }
 
     if (readme) {
         log('## Installation\n');
@@ -121,4 +121,24 @@ module.exports = function(dox, readme, pkg, travis) {
     }
 
     return output;
+
+    function printTable (d, props, name) {
+        var properties = getTags(d.tags, props);
+        if (properties.length) {
+            log('### %s\n', name);
+            log(table(
+                [[props, 'type', 'description']]
+                    .concat(properties.map(function(p) {
+                        var type = p.typesDescription.match(/^{/) ?
+                            p.typesDescription.replace(/\|/g, '/') :
+                            p.types.join(',');
+                        return ['`' + p.name + '`', type,
+                            (p.optional ? '_optional:_ ' : '') +
+                            reformat(p.description)];
+                    }))
+            ));
+            log('\n');
+        }
+    }
 };
+
